@@ -1,0 +1,14 @@
+INSERT INTO achievements (code, name, description, icon, xp_reward) VALUES
+ ('FIRST_REVIEW',   'Primeira Crítica',    'Publicou a primeira avaliação',                'star',    50),
+ ('FIRST_WATCHED',  'Sessão Inaugurada',   'Marcou o primeiro título como assistido',      'film',    30),
+ ('MARATHON_10',    'Maratonista',         'Marcou 10 títulos como assistidos',            'flame',  150),
+ ('CRITIC_10',      'Crítico de Plantão',  'Publicou 10 avaliações',                       'pen',    200),
+ ('STREAK_7',       'Semana em Chamas',    'Manteve um streak de 7 dias',                  'bolt',   100),
+ ('LIST_MAKER',     'Curador',             'Criou a primeira watchlist compartilhada',     'list',    50);
+
+INSERT INTO missions (code, name, cadence, target, xp_reward, active) VALUES
+ ('DAILY_CHECKIN',  'Visite o CineVerse hoje',           'DAILY',  1, 10, true),
+ ('RATE_1_TITLE',   'Avalie 1 título hoje',              'DAILY',  1, 20, true),
+ ('ADD_2_WATCHLIST','Adicione 2 títulos a uma lista',    'DAILY',  2, 15, true),
+ ('WATCH_3_WEEK',   'Marque 3 títulos assistidos na semana', 'WEEKLY', 3, 60, true),
+ ('REVIEW_3_WEEK',  'Escreva 3 críticas na semana',      'WEEKLY', 3, 80, true);

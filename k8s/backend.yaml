@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cineverse-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cineverse-backend
+  template:
+    metadata:
+      labels:
+        app: cineverse-backend
+    spec:
+      containers:
+        - name: backend
+          image: cineverse-backend:0.1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: REDIS_HOST
+              value: redis
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: cineverse-secrets, key: jwt-secret }
+            - name: TMDB_API_KEY
+              valueFrom:
+                secretKeyRef: { name: cineverse-secrets, key: tmdb-api-key }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 25
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 45
+          resources:
+            requests: { memory: "512Mi", cpu: "250m" }
+            limits: { memory: "1Gi", cpu: "500m" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cineverse-backend
+spec:
+  selector:
+    app: cineverse-backend
+  ports:
+    - port: 8080
