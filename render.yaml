@@ -1,0 +1,42 @@
+# Render Blueprint — backend do CineVerse (Docker)
+# Deploy: no Render, New + -> Blueprint -> selecione este repositório.
+# A Render lê este arquivo e pede as 4 variáveis secretas (sync:false).
+# O frontend fica na Vercel (ver frontend/vercel.json).
+
+services:
+  - type: web
+    name: cineverse-backend
+    runtime: docker
+    rootDir: backend           # usa backend/Dockerfile
+    region: virginia           # mesma região do Redis (Upstash us-east-1)
+    plan: free
+    branch: main
+    healthCheckPath: /actuator/health
+    autoDeploy: true           # redeploy automático a cada push na main
+    envVars:
+      # --- não-secretas (ficam no repositório) ---
+      - key: DB_HOST
+        value: aws-1-sa-east-1.pooler.supabase.com
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        value: postgres.wubwqnlwcgpnzjtmgwly
+      - key: DB_SSLMODE
+        value: require
+      - key: REDIS_HOST
+        value: cunning-toucan-157567.upstash.io
+      - key: REDIS_PORT
+        value: "6379"
+      - key: REDIS_SSL
+        value: "true"
+      # --- secretas: a Render vai pedir na hora (não vão pro git) ---
+      - key: DB_PASSWORD
+        sync: false
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: TMDB_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
