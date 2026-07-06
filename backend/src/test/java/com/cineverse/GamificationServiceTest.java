@@ -1,6 +1,11 @@
 package com.cineverse;
 
+import com.cineverse.auth.domain.Profile;
+import com.cineverse.auth.domain.User;
+import com.cineverse.auth.infrastructure.ProfileRepository;
+import com.cineverse.auth.infrastructure.UserRepository;
 import com.cineverse.gamification.GamificationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,10 +47,31 @@ class GamificationServiceTest {
 
     @Autowired
     private GamificationService service;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private ProfileRepository profileRepository;
+
+    private Long profileId;
+
+    /** Cria um usuário + perfil reais (a tabela gamification_profiles tem FK para profiles). */
+    @BeforeEach
+    void setUp() {
+        User user = userRepository.save(User.builder()
+                .name("Teste")
+                .email("teste" + System.nanoTime() + "@cineverse.dev")
+                .passwordHash("x")
+                .locale("pt-BR")
+                .build());
+        Profile profile = profileRepository.save(Profile.builder()
+                .userId(user.getId())
+                .name("Teste")
+                .build());
+        profileId = profile.getId();
+    }
 
     @Test
     void deveAcumularXpEConcederConquistaDePrimeiraReview() {
-        Long profileId = 999L;
         service.initProfile(profileId);
         service.onReview(profileId, 1);
 
@@ -58,7 +84,6 @@ class GamificationServiceTest {
 
     @Test
     void deveSubirDeNivelACada100Xp() {
-        Long profileId = 998L;
         service.initProfile(profileId);
         for (int i = 0; i < 6; i++) {
             service.onEvent(profileId, GamificationService.GameEvent.REVIEW);
