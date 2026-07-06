@@ -24,7 +24,7 @@ spring:
     type: redis
 
 server:
-  port: 8080
+  port: ${PORT:8080}   # Render injeta a porta em PORT; local usa 8080
 
 app:
   jwt:
