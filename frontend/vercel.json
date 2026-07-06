@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://SEU-BACKEND.onrender.com/api/:path*"
+      "destination": "https://cineverse-backend-p0ch.onrender.com/api/:path*"
     }
   ]
 }
