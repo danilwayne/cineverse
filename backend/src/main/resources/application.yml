@@ -11,6 +11,8 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+    baseline-on-migrate: true   # Supabase já tem objetos no schema public; cria baseline e aplica as migrations
+    baseline-version: 0         # baseline em 0 para que V1 (versão 1) também seja executada
   data:
     redis:
       host: ${REDIS_HOST:localhost}
