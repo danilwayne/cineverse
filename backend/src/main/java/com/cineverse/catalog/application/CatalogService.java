@@ -16,7 +16,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -77,16 +79,23 @@ public class CatalogService {
     private void syncProviders(Title title, String mediaType, Long tmdbId) {
         try {
             JsonNode br = tmdb.watchProviders(mediaType, tmdbId).path("results").path("BR");
-            if (br.isMissingNode()) return;
             providerRepository.deleteByTitleId(title.getId());
+            providerRepository.flush();   // executa o DELETE antes dos INSERTs (senão colide com a UNIQUE)
+            if (br.isMissingNode()) return;
             String link = br.path("link").asText(null);
-            for (String kind : List.of("flatrate", "rent", "buy")) {
-                br.path(kind).forEach(p -> providerRepository.save(WatchProvider.builder()
-                        .titleId(title.getId())
-                        .provider(p.path("provider_name").asText())
-                        .kind("flatrate".equals(kind) ? "stream" : kind)
-                        .url(link)
-                        .build()));
+            Set<String> seen = new HashSet<>();          // evita provider+kind duplicado no mesmo título
+            for (String category : List.of("flatrate", "rent", "buy")) {
+                String kind = "flatrate".equals(category) ? "stream" : category;
+                for (JsonNode p : br.path(category)) {
+                    String provider = p.path("provider_name").asText();
+                    if (provider.isBlank() || !seen.add(provider + '|' + kind)) continue;
+                    providerRepository.save(WatchProvider.builder()
+                            .titleId(title.getId())
+                            .provider(provider)
+                            .kind(kind)
+                            .url(link)
+                            .build());
+                }
             }
         } catch (Exception e) {
             log.warn("Falha ao sincronizar providers do título {}", tmdbId, e);
