@@ -99,9 +99,26 @@ public class AuthService {
                     .expiresAt(OffsetDateTime.now().plusMinutes(resetExpirationMinutes))
                     .build());
 
-            String link = frontendUrl + "/redefinir-senha?token=" + rawToken;
+            // frontendUrl pode ser lista separada por vírgula (CORS); o link usa a 1ª origem.
+            String baseUrl = frontendUrl.split(",")[0].trim();
+            String link = baseUrl + "/redefinir-senha?token=" + rawToken;
             emailService.sendPasswordReset(user.getEmail(), link);
         });
+    }
+
+    /** Troca de senha do usuário LOGADO: exige a senha atual (validada com BCrypt). */
+    @Transactional
+    public void changePassword(User user, String currentPassword, String newPassword) {
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Senha atual incorreta.");
+        }
+        User managed = userRepository.findById(user.getId())
+                .orElseThrow(() -> new NoSuchElementException("Usuário não encontrado"));
+        managed.setPasswordHash(passwordEncoder.encode(newPassword));
+
+        // Desloga as outras sessões (o próprio front vai pegar novo token no próximo login se precisar).
+        refreshTokenRepository.findByUserIdAndRevokedFalse(managed.getId())
+                .forEach(rt -> rt.setRevoked(true));
     }
 
     /** Passo 2: valida o token e grava a nova senha. */

@@ -11,7 +11,8 @@ services:
     region: virginia           # mesma região do Redis (Upstash us-east-1)
     plan: free
     branch: main
-    healthCheckPath: /actuator/health
+    # SEM healthCheckPath de propósito: no free tier o cold start é lento e o Render
+    # falharia o deploy com "internal health check timed out". Fica live quando a porta abrir.
     autoDeploy: true           # redeploy automático a cada push na main
     envVars:
       # --- não-secretas (ficam no repositório) ---
@@ -31,6 +32,10 @@ services:
         value: "6379"
       - key: REDIS_SSL
         value: "true"
+      # URL(s) do frontend p/ CORS e p/ montar o link do e-mail de reset.
+      # Aceita lista separada por vírgula; o 1º item vira a base do link do e-mail.
+      - key: FRONTEND_URL
+        value: https://cineverse-one-hazel.vercel.app
       # --- secretas: a Render vai pedir na hora (não vão pro git) ---
       - key: DB_PASSWORD
         sync: false
@@ -39,4 +44,10 @@ services:
       - key: TMDB_API_KEY
         sync: false
       - key: JWT_SECRET
+        sync: false
+      # E-mail (Gmail): username = e-mail completo; password = "senha de app" de 16 letras.
+      # Enquanto vazias, o reset funciona em MODO DEMO (link vai só pro log do backend).
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
         sync: false

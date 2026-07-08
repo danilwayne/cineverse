@@ -63,7 +63,7 @@ export class LoginComponent implements OnInit {
       next: () => this.auth.loadProfiles().subscribe(() => this.router.navigate(['/home'])),
       error: (err) => {
         this.loading = false;
-        this.error = err.error?.error ?? (err.status === 403 ? 'E-mail ou senha inválidos.' : 'Falha ao conectar.');
+        this.error = err.error?.message ?? (err.status === 403 ? 'E-mail ou senha inválidos.' : 'Falha ao conectar.');
       }
     });
   }

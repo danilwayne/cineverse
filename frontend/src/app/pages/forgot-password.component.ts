@@ -25,6 +25,12 @@ import { AuthService } from '../services/auth.service';
 
         <p class="ok" *ngIf="sent">{{ message }}</p>
 
+        <div class="divider"><span>ou</span></div>
+        <a [href]="whatsappLink" target="_blank" rel="noopener" class="whats">
+          Falar com o suporte no WhatsApp
+        </a>
+        <p class="hint">Suporte temporário para redefinir a senha manualmente.</p>
+
         <a routerLink="/login" class="link">← Voltar para o login</a>
       </div>
     </div>
@@ -38,6 +44,12 @@ import { AuthService } from '../services/auth.service';
     .error { color: var(--danger); font-size: 13px; }
     .ok { color: var(--accent); font-size: 14px; }
     .link { color: var(--muted); font-size: 13px; text-align: center; text-decoration: none; }
+    .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .whats { display: block; text-align: center; text-decoration: none;
+             background: #25D366; color: #05320f; font-weight: 700;
+             padding: 11px; border-radius: 8px; }
+    .hint { color: var(--muted); font-size: 12px; text-align: center; }
   `]
 })
 export class ForgotPasswordComponent {
@@ -48,6 +60,13 @@ export class ForgotPasswordComponent {
   message = '';
 
   constructor(private auth: AuthService) {}
+
+  /** wa.me com mensagem pré-preenchida (inclui o e-mail digitado, se houver). */
+  get whatsappLink(): string {
+    const msg = `Olá! Preciso de ajuda para redefinir a senha da minha conta CineVerse.`
+      + (this.email ? ` Meu e-mail de cadastro é: ${this.email}` : '');
+    return `https://wa.me/556194265625?text=${encodeURIComponent(msg)}`;
+  }
 
   submit() {
     if (!this.email) { this.error = 'Digite seu e-mail.'; return; }

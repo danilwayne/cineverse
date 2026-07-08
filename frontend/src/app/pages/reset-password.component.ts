@@ -64,7 +64,7 @@ export class ResetPasswordComponent implements OnInit {
       next: () => this.router.navigate(['/login'], { queryParams: { reset: '1' } }),
       error: (err) => {
         this.loading = false;
-        this.error = err.error?.error ?? 'Não foi possível redefinir. O link pode ter expirado.';
+        this.error = err.error?.message ?? 'Não foi possível redefinir. O link pode ter expirado.';
       }
     });
   }

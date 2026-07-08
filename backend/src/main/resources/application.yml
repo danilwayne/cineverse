@@ -33,6 +33,10 @@ spring:
           auth: true
           starttls:
             enable: true
+          # Timeouts (ms): sem isto, um SMTP lento/travado pendura a requisição (60s+ / 502).
+          connectiontimeout: 8000
+          timeout: 8000
+          writetimeout: 8000
 
 server:
   port: ${PORT:8080}   # Render injeta a porta em PORT; local usa 8080
@@ -42,7 +46,8 @@ app:
     secret: ${JWT_SECRET:troque-este-segredo-em-producao-min-32-caracteres!!}
     access-expiration-ms: 900000        # 15 min
     refresh-expiration-days: 30
-  # Base do frontend, usada para montar o link do e-mail de redefinição de senha.
+  # Base do frontend. Aceita LISTA separada por vírgula (para liberar CORS de Render E Vercel).
+  # O 1º item da lista é o usado para montar o link do e-mail de redefinição de senha.
   # Local: http://localhost:4200 | Produção: https://cineverse-one-hazel.vercel.app
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
   password-reset:
@@ -62,6 +67,13 @@ management:
     web:
       exposure:
         include: health, info, prometheus, metrics
+  health:
+    # Não deixar /actuator/health ficar DOWN por causa de serviço externo:
+    # isso derrubaria o deploy no Render e faria o keep-alive (UptimeRobot) achar que caiu.
+    redis:
+      enabled: false
+    mail:
+      enabled: false
 
 logging:
   level:

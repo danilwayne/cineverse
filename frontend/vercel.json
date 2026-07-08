@@ -6,6 +6,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://cineverse-backend-p0ch.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

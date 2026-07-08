@@ -13,6 +13,7 @@ import { GamificationWidgetComponent } from './pages/gamification-widget.compone
       <a routerLink="/home" class="logo">Cine<span>Verse</span></a>
       <a routerLink="/home">Explorar</a>
       <a routerLink="/lists">Minhas listas</a>
+      <a routerLink="/configuracoes">Configurações</a>
       <span class="spacer"></span>
       <app-gamification-widget />
       <button class="secondary" (click)="logout()">Sair</button>

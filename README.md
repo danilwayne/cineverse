@@ -90,27 +90,77 @@ Arquitetura: **frontend na Vercel** → **backend na Render** → **Postgres no 
 |---|---|---|
 | `TMDB_API_KEY` | sua chave v3 | themoviedb.org |
 | `JWT_SECRET` | segredo novo, mín. 32 chars | gere você mesmo¹ |
-| `DB_HOST` | host do projeto | Supabase |
-| `DB_PORT` | `5432` | Supabase |
+| `DB_HOST` | host do **Session pooler** (IPv4), ex. `aws-1-...pooler.supabase.com` | Supabase |
+| `DB_PORT` | `5432` (Session pooler) | Supabase |
 | `DB_NAME` | `postgres` | Supabase |
-| `DB_USER` | `postgres` (ou o do pooler) | Supabase |
+| `DB_USER` | `postgres.<ref-do-projeto>` (com o ID do projeto — **não** só `postgres`) | Supabase |
 | `DB_PASSWORD` | senha do banco | Supabase |
 | `DB_SSLMODE` | `require` | **obrigatório no Supabase** |
 | `REDIS_HOST` | endpoint | Upstash |
 | `REDIS_PORT` | porta | Upstash |
 | `REDIS_PASSWORD` | senha | Upstash |
 | `REDIS_SSL` | `true` | **obrigatório no Upstash** |
+| `FRONTEND_URL` | URL do frontend na Vercel (aceita lista separada por vírgula p/ CORS) | Vercel |
+| `MAIL_USERNAME` | e-mail Gmail completo (opcional — sem ele, reset em modo demo) | Gmail |
+| `MAIL_PASSWORD` | "senha de app" de 16 letras do Gmail (opcional) | Gmail |
 
 ¹ Gere um segredo forte, por ex. no PowerShell: `[Convert]::ToBase64String((1..32|%{Get-Random -Max 256}))`
 
-> 💤 **Cold start:** no free tier o backend "dorme" após inatividade e a primeira requisição pode levar ~50s. Normal.
+> ℹ️ A `spring.datasource.url` é montada como JDBC: `jdbc:postgresql://HOST:5432/postgres?sslmode=require`.
+> Usuário e senha vão em variáveis **separadas** (`DB_USER`/`DB_PASSWORD`) — nunca embutidos numa `postgres://...` com credenciais na URL.
+
+### 3.1 Manter o backend acordado (keep-alive)
+
+No free tier o Render **hiberna após ~15 min** de inatividade, e a primeira requisição depois disso leva ~1–3 min (cold start). Para evitar:
+
+1. Crie uma conta grátis no **[UptimeRobot](https://uptimerobot.com)**.
+2. **+ New monitor** → tipo **HTTP(s)** → URL: `https://SEU-BACKEND.onrender.com/actuator/health` → intervalo **5 min**.
+3. Pronto: o ping constante mantém o serviço no ar (cabe nas 750 h/mês grátis de **um** serviço).
+
+> ⚠️ **Não** use GitHub Actions para o keep-alive em repositório **privado**: um cron a cada 5 min consome ~8.640 min/mês e estoura a cota grátis de 2.000 min/mês. UptimeRobot é externo e não gasta essa cota.
+>
+> O `/actuator/health` responde `UP` mesmo se Redis/SMTP estiverem fora, porque esses health indicators estão desligados (`management.health.redis.enabled=false` e `mail.enabled=false`) — assim o keep-alive e o deploy não quebram por causa de serviço externo.
 
 ### 4. Frontend — Vercel
 1. **Add New → Project**, importando este repositório.
-2. **Root Directory:** `frontend` (a Vercel detecta Angular; o `frontend/vercel.json` já define build e output).
-3. Abra `frontend/vercel.json` e troque `https://SEU-BACKEND.onrender.com` pela URL real do backend na Render.
+2. **Root Directory:** `frontend` (a Vercel detecta Angular; o `frontend/vercel.json` já define build e output `dist/cineverse/browser`).
+3. Em `frontend/vercel.json`, confirme que o `destination` do rewrite de `/api/*` aponta para a URL real do backend na Render.
 
-O `vercel.json` reescreve `/api/*` para a Render, então o navegador só enxerga o próprio domínio da Vercel — **sem configurar CORS** e sem mudar o código Angular.
+O `vercel.json` faz duas coisas:
+- reescreve `/api/*` para a Render (o navegador só enxerga o domínio da Vercel — **sem CORS** no fluxo normal e sem mudar o código Angular);
+- tem um **fallback de SPA** (`/(.*) → /index.html`) — essencial para acessar rotas direto pela URL, como o link do e-mail de reset `/redefinir-senha?token=...` (sem ele, a Vercel devolveria 404).
+
+> **Nota de arquitetura:** o CineVerse usa caminhos relativos `/api/...` + rewrite da Vercel (não uma `apiBaseUrl` por `environment.prod.ts`). Por isso **não** há `fileReplacements` no `angular.json`: não é necessário e a página nunca "bate em si mesma", pois `/api` é sempre proxied para a Render.
+
+### 5. E-mail (recuperação de senha)
+
+O fluxo "esqueci minha senha" gera um **token de uso único** com expiração (30 min), salvo no banco (`password_reset_tokens`, guardando só o hash). O envio do link usa **SMTP (Gmail)**:
+
+1. Ative a **verificação em 2 etapas** na sua Conta Google.
+2. Gere uma **senha de app** em https://myaccount.google.com/apppasswords (16 letras).
+3. Na Render, defina `MAIL_USERNAME` (e-mail completo) e `MAIL_PASSWORD` (a senha de app, sem espaços).
+
+> 🧪 **Modo demo:** enquanto `MAIL_USERNAME`/`MAIL_PASSWORD` estiverem vazias — ou se o SMTP falhar — o backend **não quebra a requisição**: ele apenas **loga o link de reset no console** e retorna `200`. O token **nunca** é devolvido na resposta da API. Assim dá para testar o fluxo antes de ligar o e-mail, e é só preencher as variáveis depois.
+>
+> A resposta do "esqueci a senha" é **genérica** ("se este e-mail estiver cadastrado, enviaremos um link") — não revela se o e-mail existe (anti-enumeração de contas). Os timeouts de SMTP (8s) evitam que um servidor de e-mail travado pendure a requisição.
+
+Usuário **logado** troca a senha em **Configurações** (`POST /api/account/change-password`, exige a senha atual).
+
+### 6. Reset manual de senha via SQL (suporte por WhatsApp)
+
+Enquanto o e-mail transacional com domínio próprio não está ativo, a tela "Esqueci minha senha" oferece um botão **"Falar com o suporte no WhatsApp"**. O suporte pode redefinir a senha direto no banco com um **hash BCrypt** já calculado (mesmo formato que o `BCryptPasswordEncoder` do Spring gera/valida — prefixo `$2a`/`$2b`):
+
+```sql
+-- Tabela: users | coluna do hash: password_hash (ver @Table/@Column da entidade User)
+-- Senha temporária "cineverse123" (hash BCrypt força 10, já validado):
+UPDATE users
+   SET password_hash = '$2a$10$40ZLVVilgY6cyz5hbx0gR.bmwQa5m/vudoL/YrJdzQBH01igtIrR2'
+ WHERE email = 'usuario@exemplo.com';
+```
+
+Depois disso o usuário entra com a senha temporária **`cineverse123`** e deve trocá-la **imediatamente** em **Configurações** (item acima).
+
+> ⚠️ `cineverse123` é uma senha **conhecida e temporária** — oriente o usuário a trocá-la no primeiro login. Para gerar o hash de outra senha, use o `BCryptPasswordEncoder` (força 10) do próprio backend.
 
 ---
 

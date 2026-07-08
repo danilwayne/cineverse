@@ -45,6 +45,11 @@ export class AuthService {
     return this.http.post<{ message: string }>('/api/auth/reset-password', { token, password });
   }
 
+  /** Troca de senha do usuário logado (exige a senha atual). */
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.http.post<{ message: string }>('/api/account/change-password', { currentPassword, newPassword });
+  }
+
   loadProfiles() {
     return this.http.get<Profile[]>('/api/profiles')
       .pipe(tap(list => {
