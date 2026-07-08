@@ -1,13 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="wrapper">
       <div class="card box">
@@ -19,6 +19,7 @@ import { AuthService } from '../services/auth.service';
         <input [(ngModel)]="password" type="password" placeholder="Senha (mín. 8 caracteres)"
                (keyup.enter)="submit()" />
 
+        <p class="ok" *ngIf="justReset">Senha alterada! Faça login com a nova senha.</p>
         <p class="error" *ngIf="error">{{ error }}</p>
 
         <button (click)="submit()" [disabled]="loading">
@@ -27,6 +28,7 @@ import { AuthService } from '../services/auth.service';
         <button class="secondary" (click)="isRegister = !isRegister; error = ''">
           {{ isRegister ? 'Já tenho conta' : 'Criar nova conta' }}
         </button>
+        <a *ngIf="!isRegister" routerLink="/esqueci-senha" class="link">Esqueci minha senha</a>
       </div>
     </div>
   `,
@@ -37,13 +39,19 @@ import { AuthService } from '../services/auth.service';
     h1 { font-size: 28px; }
     .sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
     .error { color: var(--danger); font-size: 13px; }
+    .ok { color: var(--accent); font-size: 13px; }
+    .link { color: var(--muted); font-size: 13px; text-align: center; text-decoration: none; }
   `]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   name = ''; email = ''; password = '';
-  isRegister = false; loading = false; error = '';
+  isRegister = false; loading = false; error = ''; justReset = false;
 
-  constructor(private auth: AuthService, private router: Router) {}
+  constructor(private auth: AuthService, private router: Router, private route: ActivatedRoute) {}
+
+  ngOnInit() {
+    this.justReset = this.route.snapshot.queryParamMap.get('reset') === '1';
+  }
 
   submit() {
     this.loading = true; this.error = '';

@@ -22,6 +22,17 @@ spring:
         enabled: ${REDIS_SSL:false}   # Upstash e outros Redis gerenciados exigem TLS
   cache:
     type: redis
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}          # seu endereço Gmail completo
+    password: ${MAIL_PASSWORD:}          # "senha de app" do Gmail (16 letras), NÃO a senha normal
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 server:
   port: ${PORT:8080}   # Render injeta a porta em PORT; local usa 8080
@@ -31,6 +42,12 @@ app:
     secret: ${JWT_SECRET:troque-este-segredo-em-producao-min-32-caracteres!!}
     access-expiration-ms: 900000        # 15 min
     refresh-expiration-days: 30
+  # Base do frontend, usada para montar o link do e-mail de redefinição de senha.
+  # Local: http://localhost:4200 | Produção: https://cineverse-one-hazel.vercel.app
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  password-reset:
+    from: ${MAIL_FROM:CineVerse <no-reply@cineverse.app>}
+    expiration-minutes: 30
   tmdb:
     api-key: ${TMDB_API_KEY:}           # crie grátis em https://www.themoviedb.org/settings/api
     base-url: https://api.themoviedb.org/3

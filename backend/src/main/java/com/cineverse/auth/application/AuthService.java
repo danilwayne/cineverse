@@ -1,5 +1,6 @@
 package com.cineverse.auth.application;
 
+import com.cineverse.auth.domain.PasswordResetToken;
 import com.cineverse.auth.domain.Profile;
 import com.cineverse.auth.domain.RefreshToken;
 import com.cineverse.auth.domain.User;
@@ -21,12 +22,20 @@ public class AuthService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final GamificationService gamificationService;
+    private final EmailService emailService;
 
     @Value("${app.jwt.refresh-expiration-days}")
     private long refreshDays;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
+    @Value("${app.password-reset.expiration-minutes}")
+    private long resetExpirationMinutes;
 
     public record Tokens(String accessToken, String refreshToken, String name, String plan) {}
 
@@ -76,6 +85,42 @@ public class AuthService {
     public void logout(String refreshToken) {
         refreshTokenRepository.findByTokenHashAndRevokedFalse(jwtService.sha256(refreshToken))
                 .ifPresent(t -> t.setRevoked(true));
+    }
+
+    /** Passo 1 do "esqueci minha senha": gera o token e envia o link por e-mail.
+     *  Nunca revela se o e-mail existe (proteção contra descoberta de contas). */
+    @Transactional
+    public void requestPasswordReset(String email) {
+        userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
+            String rawToken = jwtService.generateOpaqueToken();
+            passwordResetTokenRepository.save(PasswordResetToken.builder()
+                    .userId(user.getId())
+                    .tokenHash(jwtService.sha256(rawToken))
+                    .expiresAt(OffsetDateTime.now().plusMinutes(resetExpirationMinutes))
+                    .build());
+
+            String link = frontendUrl + "/redefinir-senha?token=" + rawToken;
+            emailService.sendPasswordReset(user.getEmail(), link);
+        });
+    }
+
+    /** Passo 2: valida o token e grava a nova senha. */
+    @Transactional
+    public void resetPassword(String rawToken, String newPassword) {
+        PasswordResetToken token = passwordResetTokenRepository
+                .findByTokenHashAndUsedFalse(jwtService.sha256(rawToken))
+                .filter(t -> t.getExpiresAt().isAfter(OffsetDateTime.now()))
+                .orElseThrow(() -> new IllegalArgumentException("Link inválido ou expirado. Peça um novo."));
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(() -> new NoSuchElementException("Usuário não encontrado"));
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        token.setUsed(true); // uso único
+
+        // Segurança: desloga todas as sessões antigas (força novo login com a senha nova)
+        refreshTokenRepository.findByUserIdAndRevokedFalse(user.getId())
+                .forEach(rt -> rt.setRevoked(true));
     }
 
     private Tokens issueTokens(User user) {

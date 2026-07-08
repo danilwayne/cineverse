@@ -35,6 +35,16 @@ export class AuthService {
       .pipe(tap(t => this.store(t)));
   }
 
+  /** Passo 1: pede o link de redefinição por e-mail. */
+  forgotPassword(email: string) {
+    return this.http.post<{ message: string }>('/api/auth/forgot-password', { email });
+  }
+
+  /** Passo 2: envia o token (do link) + a nova senha. */
+  resetPassword(token: string, password: string) {
+    return this.http.post<{ message: string }>('/api/auth/reset-password', { token, password });
+  }
+
   loadProfiles() {
     return this.http.get<Profile[]>('/api/profiles')
       .pipe(tap(list => {
